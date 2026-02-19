@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -368,7 +369,7 @@
     </div>
 
     <div class="lib-foot">
-      <a href="editor.html" class="btn btn-accent">＋ New Script</a>
+      <a href="index.html" class="btn btn-accent">＋ New Script</a>
       <button class="btn btn-ghost btn-sm" onclick="triggerImport()">Open .json</button>
     </div>
   </div>
@@ -393,7 +394,7 @@
           <button class="btn btn-ghost btn-sm" onclick="clearHighlights()">Clear ★</button>
           <button class="btn btn-ghost btn-sm" onclick="copyScript()">Copy text</button>
           <button class="btn btn-orange btn-sm" onclick="downloadCurrent()">↓ .json</button>
-          <a id="edit-link" href="editor.html" class="btn btn-accent btn-sm">✏ Edit</a>
+          <a id="edit-link" href="index.html" class="btn btn-accent btn-sm">✏ Edit</a>
         </div>
       </div>
       <div class="viewer-body" id="viewer-body"></div>
@@ -533,7 +534,7 @@ function renderViewer(script) {
     [script.notes, date].filter(Boolean).join(' · ');
 
   // Edit link — pass id so editor can load it
-  document.getElementById('edit-link').href = `editor.html?id=${script.id}`;
+  document.getElementById('edit-link').href = `index.html?id=${script.id}`;
 
   // Stats
   const totalQ  = (script.sections||[]).reduce((a,s)=>a+s.variations.reduce((b,v)=>b+v.questions.length,0),0);
