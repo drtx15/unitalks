@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniTalks — Editor</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300;1,9..144,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+/* ── EDITOR LAYOUT ── */
+.app { display: flex; height: calc(100vh - 58px); overflow: hidden; }
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sidebar-head {
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.sidebar-label { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--text3); text-transform: uppercase; }
+.sidebar-total { font-family: var(--mono); font-size: 10px; color: var(--green); }
+
+.sidebar-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: background var(--transition);
+}
+.sidebar-item:hover { background: var(--card); }
+.sidebar-item.active { background: var(--card); border-left-color: var(--accent); }
+.si-num  { font-family: var(--mono); font-size: 9px; color: var(--text3); min-width: 16px; }
+.si-name { font-family: var(--mono); font-size: 11px; color: var(--text2); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-item.active .si-name { color: var(--text); }
+.si-time { font-family: var(--mono); font-size: 9px; color: var(--green); }
+
+.sidebar-foot {
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.runtime-row { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; color: var(--text2); }
+.runtime-row span { color: var(--accent); font-size: 12px; }
+
+/* ── MAIN ── */
+.main { flex: 1; overflow-y: auto; padding: 28px 36px 100px; }
+
+/* ── GUEST CARD ── */
+.guest-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 22px 24px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+}
+.guest-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), var(--green));
+}
+.guest-row { display: flex; gap: 16px; align-items: flex-start; }
+.guest-fields { flex: 1; min-width: 0; }
+.guest-field-label { font-family: var(--mono); font-size: 8px; letter-spacing: 2px; color: var(--text3); text-transform: uppercase; margin-bottom: 4px; }
+.guest-name-input {
+  font-family: var(--display);
+  font-size: 28px;
+  letter-spacing: 2px;
+  color: var(--text);
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+.guest-name-input:focus { background: rgba(255,255,255,0.02); border-radius: 2px; }
+.guest-role-input {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text2);
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  margin-top: 4px;
+}
+.guest-role-input:focus { background: rgba(255,255,255,0.02); border-radius: 2px; }
+.guest-achievements { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+
+/* ── SECTION BLOCK ── */
+.section-block {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  transition: border-color var(--transition);
+  animation: fadeUp 0.3s ease both;
+}
+.section-block:hover { border-color: var(--border2); }
+.section-block.drag-over { border-color: var(--accent) !important; }
+.section-block.collapsed .section-body { display: none; }
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  background: var(--card2);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+}
+.s-drag { color: var(--text3); font-size: 15px; cursor: grab; flex-shrink: 0; }
+.s-num  { font-family: var(--mono); font-size: 9px; color: var(--text3); min-width: 18px; flex-shrink: 0; }
+.s-name-input {
+  font-family: var(--display);
+  font-size: 17px;
+  letter-spacing: 2px;
+  color: var(--text);
+  background: transparent;
+  border: none;
+  outline: none;
+  flex: 1;
+  min-width: 0;
+}
+.s-type-select {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 2px;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  background: transparent;
+  flex-shrink: 0;
+}
+.s-time-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--green-dim);
+  border: 1px solid rgba(94,255,196,0.15);
+  border-radius: 2px;
+  padding: 3px 8px;
+  flex-shrink: 0;
+}
+.s-time-wrap label { font-family: var(--mono); font-size: 8px; color: var(--green); }
+.s-time-input {
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--green);
+  width: 30px;
+  text-align: center;
+}
+.s-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.s-collapse-icon { transition: transform 0.2s; color: var(--text3); padding: 4px; font-size: 11px; }
+.section-block.collapsed .s-collapse-icon { transform: rotate(-90deg); }
+
+.section-body { padding: 14px 16px 16px; }
+
+/* ── VARIATION GROUP ── */
+.variation-group {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.variation-group.collapsed .variation-body { display: none; }
+
+.variation-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--card2);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.v-drag { color: var(--text3); font-size: 11px; cursor: grab; flex-shrink: 0; }
+.v-label-input {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--accent);
+  letter-spacing: 1px;
+  background: transparent;
+  border: none;
+  outline: none;
+  flex: 1;
+}
+.v-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.v-collapse-icon { color: var(--text3); font-size: 10px; padding: 2px 4px; transition: transform 0.2s; }
+.variation-group.collapsed .v-collapse-icon { transform: rotate(-90deg); }
+
+.variation-body { padding: 4px 0; }
+
+/* ── QUESTION CARD ── */
+.q-card {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  margin: 0 0 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+  position: relative;
+}
+.q-card:hover   { border-color: var(--border2); background: var(--card2); }
+.q-card.selected { border-color: var(--accent); background: var(--accent-glow); }
+
+.q-check {
+  width: 15px; height: 15px; min-width: 15px;
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; margin-top: 2px;
+  transition: all var(--transition);
+  flex-shrink: 0;
+  color: transparent;
+}
+.q-card.selected .q-check { background: var(--accent); border-color: var(--accent); color: #07070d; }
+
+.q-body { flex: 1; min-width: 0; }
+.q-text-field {
+  font-family: var(--serif);
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: var(--text);
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  min-height: 20px;
+}
+.q-tip-field {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-style: italic;
+  color: var(--text3);
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  margin-top: 5px;
+  padding-left: 8px;
+  border-left: 2px solid var(--border);
+  min-height: 0;
+}
+.q-tip-field::placeholder { color: var(--text3); opacity: 0.45; }
+.q-tip-field:focus { border-left-color: var(--border2); }
+.q-actions { display: flex; gap: 2px; flex-shrink: 0; opacity: 0; transition: opacity var(--transition); }
+.q-card:hover .q-actions { opacity: 1; }
+
+/* ── ADD BUTTONS ── */
+.add-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  color: var(--text3);
+  font-family: var(--mono);
+  font-size: 10px;
+  cursor: pointer;
+  transition: all var(--transition);
+  width: 100%;
+  text-align: left;
+  margin-top: 4px;
+}
+.add-btn:hover { border-color: var(--border2); color: var(--text2); background: var(--card); }
+.add-btn.accent:hover { border-color: rgba(232,255,71,0.3); color: var(--accent); }
+.add-btn.green:hover  { border-color: rgba(94,255,196,0.3);  color: var(--green); }
+
+.add-section-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  color: var(--text3);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all var(--transition);
+  width: 100%;
+  margin-top: 8px;
+}
+.add-section-btn:hover {
+  border-color: rgba(232,255,71,0.3);
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+
+/* ── BOTTOM BAR ── */
+.bottom-bar {
+  position: fixed;
+  bottom: 0; left: 240px; right: 0;
+  background: rgba(7,7,13,0.96);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid var(--accent);
+  padding: 10px 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  z-index: 50;
+}
+.sel-count { font-family: var(--mono); font-size: 12px; color: var(--accent); }
+
+/* ── SAVE STATUS ── */
+.save-status {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+}
+.save-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--text3); transition: background 0.3s; }
+.save-status.unsaved .save-dot { background: var(--orange); }
+.save-status.saved    .save-dot { background: var(--green); }
+
+/* ── EXPORT MODAL ── */
+.export-section-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--green);
+  text-transform: uppercase;
+  margin: 18px 0 8px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border);
+}
+.export-q { display: flex; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+.export-q-num  { font-family: var(--mono); font-size: 10px; color: var(--text3); min-width: 18px; }
+.export-q-text { font-size: 13px; line-height: 1.6; flex: 1; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="app-header">
+  <div class="logo">UniTalks</div>
+  <div class="header-sep"></div>
+  <div style="flex:1;min-width:0;">
+    <div id="hdr-name" style="font-family:var(--mono);font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+    <div id="hdr-role" style="font-family:var(--mono);font-size:9px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+  </div>
+  <div class="header-actions">
+    <div class="save-status" id="save-status">
+      <div class="save-dot"></div>
+      <span id="save-label">Ready</span>
+    </div>
+    <div class="live-timer" id="timer-widget" onclick="timer.toggle()">
+      <div class="live-dot"></div>
+      <span id="timer-display">00:00</span>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="loadFromFile()">↑ Open .json</button>
+    <button class="btn btn-orange btn-sm" onclick="saveToFile()">↓ Save .json</button>
+    <button class="btn btn-ghost btn-sm" onclick="openExport()">Preview</button>
+    <button class="btn btn-accent btn-sm" onclick="openGuestModal()">⚙ Guest</button>
+    <a href="library.html" class="btn btn-ghost btn-sm">📚 Library</a>
+  </div>
+</header>
+<input type="file" id="file-input" accept=".json" style="display:none" onchange="onFileInputChange(event)">
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-head">
+      <span class="sidebar-label">Sections</span>
+      <span class="sidebar-total" id="sb-total">0 min</span>
+    </div>
+    <div class="sidebar-list" id="sb-list"></div>
+    <div class="sidebar-foot">
+      <div class="runtime-row">Total runtime <span id="sb-runtime">0 min</span></div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main" id="main">
+    <!-- GUEST CARD -->
+    <div class="guest-card">
+      <div class="guest-row">
+        <div class="guest-fields">
+          <div class="guest-field-label">Guest name</div>
+          <input class="guest-name-input" id="guest-name" type="text" placeholder="Guest Name"
+            oninput="onGuestInput()" autocomplete="off">
+          <div class="guest-field-label" style="margin-top:8px;">Role / Bio</div>
+          <input class="guest-role-input" id="guest-role" type="text" placeholder="Company · University · Title"
+            oninput="onGuestInput()" autocomplete="off">
+        </div>
+        <div style="text-align:right;flex-shrink:0;">
+          <div class="guest-field-label" style="margin-bottom:6px;">Achievements</div>
+          <button class="btn btn-ghost btn-xs" onclick="openGuestModal()">Edit</button>
+        </div>
+      </div>
+      <div class="guest-achievements" id="achievements"></div>
+    </div>
+
+    <!-- SECTIONS -->
+    <div id="sections"></div>
+    <button class="add-section-btn" onclick="addSection()">＋ Add Section</button>
+  </div>
+</div>
+
+<!-- BOTTOM BAR -->
+<div class="bottom-bar">
+  <span class="sel-count" id="sel-count">0 selected</span>
+  <div style="display:flex;gap:8px;">
+    <button class="btn btn-ghost btn-sm" onclick="clearSelection()">Clear</button>
+    <button class="btn btn-ghost btn-sm" onclick="selectAll()">Select All</button>
+    <button class="btn btn-accent btn-sm" onclick="openExport()">Export Script ↗</button>
+  </div>
+</div>
+
+<!-- GUEST MODAL -->
+<div class="modal-overlay" id="guest-modal" onclick="handleOverlayClick(event,'guest-modal')">
+  <div class="modal" style="max-width:460px;">
+    <button class="modal-close" onclick="closeModal('guest-modal')">✕</button>
+    <div class="modal-title">Guest Info</div>
+    <div class="modal-sub">Syncs across the editor in real time</div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div>
+        <label class="form-label">Name</label>
+        <input type="text" id="gm-name" class="form-input" style="font-family:var(--display);font-size:18px;letter-spacing:2px;" oninput="syncGuestFromModal()">
+      </div>
+      <div>
+        <label class="form-label">Role / Bio</label>
+        <input type="text" id="gm-role" class="form-input" oninput="syncGuestFromModal()">
+      </div>
+      <div>
+        <label class="form-label">Achievements</label>
+        <div id="gm-achievements" style="display:flex;flex-wrap:wrap;gap:6px;min-height:28px;margin-bottom:8px;"></div>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="gm-new-ach" class="form-input" style="flex:1" placeholder="New achievement..."
+            onkeydown="if(event.key==='Enter')addAchievement()">
+          <button class="btn btn-green btn-sm" onclick="addAchievement()">+ Add</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-accent" onclick="closeModal('guest-modal')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT MODAL -->
+<div class="modal-overlay" id="export-modal" onclick="handleOverlayClick(event,'export-modal')">
+  <div class="modal" style="max-width:700px;">
+    <button class="modal-close" onclick="closeModal('export-modal')">✕</button>
+    <div class="modal-title">Script Preview</div>
+    <div class="modal-sub" id="export-sub">—</div>
+    <div id="export-content"></div>
+    <div class="modal-footer">
+      <button class="btn btn-accent"  onclick="copyExport()">Copy Text</button>
+      <button class="btn btn-orange"  onclick="saveToFile()">↓ Save .json</button>
+      <button class="btn btn-ghost"   onclick="closeModal('export-modal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="shared.js"></script>
+<script>
+// ═══════════════════════════════════════════════
+// EDITOR STATE
+// ═══════════════════════════════════════════════
+let guest    = buildDefaultGuest();
+let sections = [];
+let selected = new Set();   // "sId-vId-qId"
+let unsaved  = false;
+let currentFilename = null;
+let currentScriptId  = null;
+
+const timer = new LiveTimer(
+  document.getElementById('timer-display'),
+  document.getElementById('timer-widget')
+);
+
+// ═══════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════
+window.addEventListener('load', () => {
+  // If library opened this script by id, load it
+  const urlId = new URLSearchParams(window.location.search).get('id');
+  if (urlId) {
+    const saved = getScriptById(urlId);
+    if (saved) { loadPayload(saved); return; }
+  }
+  sections = buildDefaultSections();
+  renderAll();
+  setTimeout(autoResizeAll, 80);
+});
+
+window.addEventListener('beforeunload', e => {
+  if (unsaved) { e.preventDefault(); e.returnValue = ''; }
+});
+
+document.addEventListener('keydown', e => {
+  if ((e.metaKey||e.ctrlKey) && e.key === 's') { e.preventDefault(); saveToFile(); }
+});
+
+// ═══════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════
+function renderAll() {
+  renderHeader();
+  renderAchievements();
+  renderSections();
+  renderSidebar();
+  updateSelCount();
+}
+
+function renderHeader() {
+  document.getElementById('hdr-name').textContent = guest.name || 'Guest Name';
+  document.getElementById('hdr-role').textContent = guest.role || '';
+  document.getElementById('guest-name').value = guest.name || '';
+  document.getElementById('guest-role').value = guest.role || '';
+}
+
+function renderAchievements() {
+  document.getElementById('achievements').innerHTML =
+    guest.achievements.map((a, i) => `
+      <div class="achievement-tag">
+        <span contenteditable="true" spellcheck="false"
+          onblur="guest.achievements[${i}]=this.textContent.trim();markUnsaved()">${escHtml(a)}</span>
+        <span class="ach-del" onclick="deleteAchievement(${i})">✕</span>
+      </div>`).join('');
+}
+
+function renderSections() {
+  document.getElementById('sections').innerHTML =
+    sections.map((s, si) => renderSection(s, si)).join('');
+}
+
+function renderSection(sec, si) {
+  const cls = sec.collapsed ? 'collapsed' : '';
+  return `
+  <div class="section-block ${cls}" id="sec-${sec.id}" data-sid="${sec.id}">
+    <div class="section-head" onclick="toggleSection(${sec.id})">
+      <span class="s-drag" draggable="true" onclick="event.stopPropagation()"
+        ondragstart="dragStart(event,${sec.id})"
+        ondragover="dragOver(event,${sec.id})"
+        ondrop="dragDrop(event,${sec.id})"
+        ondragleave="dragLeave(${sec.id})">⠿</span>
+      <span class="s-num">${String(si+1).padStart(2,'0')}</span>
+      <input class="s-name-input" value="${escAttr(sec.name)}"
+        onclick="event.stopPropagation()"
+        oninput="sec_name(${sec.id},this.value)">
+      <select class="s-type-select ${`type-${sec.type}`}" onclick="event.stopPropagation()"
+        onchange="sec_type(${sec.id},this.value)">
+        ${['intro','qa','topic','outro'].map(t =>
+          `<option value="${t}"${sec.type===t?' selected':''}>${t.toUpperCase()}</option>`).join('')}
+      </select>
+      <div class="s-time-wrap" onclick="event.stopPropagation()">
+        <label>⏱</label>
+        <input class="s-time-input" type="number" min="0" max="999" value="${sec.time}"
+          onchange="sec_time(${sec.id},this.value)" title="Minutes">
+        <label style="font-size:8px;">min</label>
+      </div>
+      <div class="s-actions" onclick="event.stopPropagation()">
+        <button class="icon-btn" onclick="duplicateSection(${sec.id})" title="Duplicate">⧉</button>
+        <button class="icon-btn" onclick="moveSec(${sec.id},-1)" title="Up">↑</button>
+        <button class="icon-btn" onclick="moveSec(${sec.id},+1)" title="Down">↓</button>
+        <button class="icon-btn danger" onclick="deleteSection(${sec.id})" title="Delete">🗑</button>
+        <span class="s-collapse-icon">▾</span>
+      </div>
+    </div>
+    <div class="section-body">
+      ${sec.variations.map(v => renderVariation(sec, v)).join('')}
+      <button class="add-btn green" onclick="addVariation(${sec.id})">＋ Add Variation</button>
+    </div>
+  </div>`;
+}
+
+function renderVariation(sec, v) {
+  const cls = v.collapsed ? 'collapsed' : '';
+  return `
+  <div class="variation-group ${cls}" id="var-${v.id}">
+    <div class="variation-head" onclick="toggleVariation(${v.id})">
+      <span class="v-drag">⠿</span>
+      <input class="v-label-input" value="${escAttr(v.label)}"
+        onclick="event.stopPropagation()"
+        oninput="var_label(${v.id},this.value)" placeholder="Variation name...">
+      <div class="v-actions" onclick="event.stopPropagation()">
+        <button class="icon-btn btn-sm" onclick="dupVariation(${sec.id},${v.id})" title="Duplicate">⧉</button>
+        <button class="icon-btn btn-sm danger" onclick="delVariation(${sec.id},${v.id})" title="Delete">✕</button>
+        <span class="v-collapse-icon">▾</span>
+      </div>
+    </div>
+    <div class="variation-body">
+      ${v.questions.map((q, qi) => renderQ(sec.id, v.id, q, qi)).join('')}
+      <div style="padding:0 12px 10px;">
+        <button class="add-btn accent" onclick="addQ(${sec.id},${v.id})">＋ Add Question</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderQ(sId, vId, q, qi) {
+  const key = `${sId}-${vId}-${q.id}`;
+  const sel = selected.has(key) ? 'selected' : '';
+  return `
+  <div class="q-card ${sel}" id="q-${q.id}" data-key="${key}"
+    onclick="toggleSelect('${key}', event)">
+    <div class="q-check">✓</div>
+    <div class="q-body">
+      <textarea class="q-text-field" rows="1" placeholder="Enter question..."
+        oninput="q_text(${sId},${vId},${q.id},this.value);autoResize(this);markUnsaved()"
+        onclick="event.stopPropagation()">${escHtml(q.text)}</textarea>
+      <textarea class="q-tip-field" rows="1" placeholder="Tip / note (optional)..."
+        oninput="q_tip(${sId},${vId},${q.id},this.value);autoResize(this);markUnsaved()"
+        onclick="event.stopPropagation()">${escHtml(q.tip)}</textarea>
+    </div>
+    <div class="q-actions">
+      <button class="icon-btn btn-sm" onclick="event.stopPropagation();dupQ(${sId},${vId},${q.id})" title="Duplicate">⧉</button>
+      <button class="icon-btn btn-sm danger" onclick="event.stopPropagation();delQ(${sId},${vId},${q.id})" title="Delete">✕</button>
+    </div>
+  </div>`;
+}
+
+function renderSidebar() {
+  const total = sections.reduce((a, s) => a + (parseInt(s.time)||0), 0);
+  document.getElementById('sb-total').textContent   = total + ' min';
+  document.getElementById('sb-runtime').textContent = formatRuntime(total);
+  document.getElementById('sb-list').innerHTML = sections.map((s, i) => `
+    <div class="sidebar-item" onclick="scrollTo('sec-${s.id}')">
+      <span class="si-num">${String(i+1).padStart(2,'0')}</span>
+      <span class="si-name">${escHtml(s.name)}</span>
+      <span class="si-time">${s.time}m</span>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════
+// SECTION CRUD
+// ═══════════════════════════════════════════════
+function addSection() {
+  const s = makeSection(); sections.push(s);
+  renderSections(); renderSidebar(); markUnsaved();
+  setTimeout(() => document.getElementById(`sec-${s.id}`)?.scrollIntoView({behavior:'smooth',block:'start'}), 80);
+  toast('Section added');
+}
+
+function deleteSection(id) {
+  if (!confirm('Delete this section?')) return;
+  sections = sections.filter(s => s.id !== id);
+  renderSections(); renderSidebar(); markUnsaved(); toast('Section deleted');
+}
+
+function duplicateSection(id) {
+  const sec = sections.find(s => s.id === id); if (!sec) return;
+  const c = deepClone(sec);
+  c.id = ++_sId; c.name = c.name + ' (copy)';
+  c.variations = c.variations.map(v => ({
+    ...v, id: ++_vId,
+    questions: v.questions.map(q => ({...q, id: ++_qId}))
+  }));
+  sections.splice(sections.findIndex(s => s.id === id) + 1, 0, c);
+  renderSections(); renderSidebar(); markUnsaved(); toast('Duplicated');
+}
+
+function moveSec(id, dir) {
+  const i = sections.findIndex(s => s.id === id);
+  const j = i + dir;
+  if (j < 0 || j >= sections.length) return;
+  [sections[i], sections[j]] = [sections[j], sections[i]];
+  renderSections(); renderSidebar(); markUnsaved();
+}
+
+function toggleSection(id) {
+  const s = sections.find(s => s.id === id);
+  if (s) { s.collapsed = !s.collapsed; renderSections(); }
+}
+function sec_name(id, v) { const s=sections.find(s=>s.id===id); if(s){s.name=v; renderSidebar();} markUnsaved(); }
+function sec_time(id, v) { const s=sections.find(s=>s.id===id); if(s){s.time=parseInt(v)||0; renderSidebar();} markUnsaved(); }
+function sec_type(id, v) { const s=sections.find(s=>s.id===id); if(s)s.type=v; markUnsaved(); }
+
+// ═══════════════════════════════════════════════
+// VARIATION CRUD
+// ═══════════════════════════════════════════════
+function addVariation(sId) {
+  const s = sections.find(s => s.id === sId); if (!s) return;
+  s.variations.push(makeVariation()); renderSections(); markUnsaved(); toast('Variation added');
+}
+function delVariation(sId, vId) {
+  const s = sections.find(s => s.id === sId); if (!s) return;
+  s.variations = s.variations.filter(v => v.id !== vId); renderSections(); markUnsaved();
+}
+function dupVariation(sId, vId) {
+  const s = sections.find(s => s.id === sId); if (!s) return;
+  const v = s.variations.find(v => v.id === vId); if (!v) return;
+  const c = {...deepClone(v), id:++_vId, label:v.label+' (copy)',
+    questions: v.questions.map(q=>({...q,id:++_qId}))};
+  s.variations.splice(s.variations.findIndex(v=>v.id===vId)+1, 0, c);
+  renderSections(); markUnsaved();
+}
+function toggleVariation(vId) {
+  sections.forEach(s => { const v=s.variations.find(v=>v.id===vId); if(v)v.collapsed=!v.collapsed; });
+  renderSections();
+}
+function var_label(vId, val) {
+  sections.forEach(s => { const v=s.variations.find(v=>v.id===vId); if(v)v.label=val; }); markUnsaved();
+}
+
+// ═══════════════════════════════════════════════
+// QUESTION CRUD
+// ═══════════════════════════════════════════════
+function addQ(sId, vId) {
+  const s=sections.find(s=>s.id===sId), v=s&&s.variations.find(v=>v.id===vId); if(!v) return;
+  const q = makeQuestion(); v.questions.push(q);
+  renderSections(); markUnsaved();
+  setTimeout(() => document.querySelector(`#q-${q.id} .q-text-field`)?.focus(), 50);
+}
+function delQ(sId, vId, qId) {
+  const s=sections.find(s=>s.id===sId), v=s&&s.variations.find(v=>v.id===vId); if(!v) return;
+  v.questions = v.questions.filter(q=>q.id!==qId);
+  selected.delete(`${sId}-${vId}-${qId}`);
+  renderSections(); updateSelCount(); markUnsaved();
+}
+function dupQ(sId, vId, qId) {
+  const s=sections.find(s=>s.id===sId), v=s&&s.variations.find(v=>v.id===vId); if(!v) return;
+  const q = v.questions.find(q=>q.id===qId); if(!q) return;
+  const c = {...q, id:++_qId};
+  v.questions.splice(v.questions.findIndex(q=>q.id===qId)+1, 0, c);
+  renderSections(); markUnsaved();
+}
+function q_text(sId,vId,qId,val){const s=sections.find(s=>s.id===sId),v=s&&s.variations.find(v=>v.id===vId),q=v&&v.questions.find(q=>q.id===qId);if(q)q.text=val;}
+function q_tip(sId,vId,qId,val){const s=sections.find(s=>s.id===sId),v=s&&s.variations.find(v=>v.id===vId),q=v&&v.questions.find(q=>q.id===qId);if(q)q.tip=val;}
+
+// ═══════════════════════════════════════════════
+// GUEST
+// ═══════════════════════════════════════════════
+function onGuestInput() {
+  guest.name = document.getElementById('guest-name').value;
+  guest.role = document.getElementById('guest-role').value;
+  document.getElementById('hdr-name').textContent = guest.name || 'Guest Name';
+  document.getElementById('hdr-role').textContent = guest.role;
+  markUnsaved();
+}
+function openGuestModal() {
+  document.getElementById('gm-name').value = guest.name;
+  document.getElementById('gm-role').value = guest.role;
+  renderGmAchievements();
+  openModal('guest-modal');
+}
+function syncGuestFromModal() {
+  guest.name = document.getElementById('gm-name').value;
+  guest.role = document.getElementById('gm-role').value;
+  document.getElementById('guest-name').value = guest.name;
+  document.getElementById('guest-role').value = guest.role;
+  document.getElementById('hdr-name').textContent = guest.name;
+  document.getElementById('hdr-role').textContent = guest.role;
+  markUnsaved();
+}
+function renderGmAchievements() {
+  document.getElementById('gm-achievements').innerHTML =
+    guest.achievements.map((a,i) => `
+      <div class="achievement-tag" style="cursor:default">
+        <span>${escHtml(a)}</span>
+        <span class="ach-del" onclick="deleteAchievement(${i})">✕</span>
+      </div>`).join('');
+}
+function addAchievement() {
+  const inp = document.getElementById('gm-new-ach');
+  const v = inp.value.trim(); if (!v) return;
+  guest.achievements.push(v); inp.value = '';
+  renderAchievements(); renderGmAchievements(); markUnsaved(); toast('Achievement added');
+}
+function deleteAchievement(i) {
+  guest.achievements.splice(i, 1);
+  renderAchievements(); renderGmAchievements(); markUnsaved();
+}
+
+// ═══════════════════════════════════════════════
+// SELECTION
+// ═══════════════════════════════════════════════
+function toggleSelect(key, e) {
+  if (e && ['TEXTAREA','BUTTON','INPUT','SELECT'].includes(e.target.tagName)) return;
+  const card = document.querySelector(`[data-key="${key}"]`);
+  if (selected.has(key)) { selected.delete(key); card?.classList.remove('selected'); }
+  else                   { selected.add(key);    card?.classList.add('selected'); }
+  updateSelCount();
+}
+function clearSelection() {
+  selected.clear();
+  document.querySelectorAll('.q-card.selected').forEach(c => c.classList.remove('selected'));
+  updateSelCount();
+}
+function selectAll() {
+  sections.forEach(s => s.variations.forEach(v => v.questions.forEach(q => {
+    const key = `${s.id}-${v.id}-${q.id}`;
+    selected.add(key);
+  })));
+  document.querySelectorAll('.q-card').forEach(c => c.classList.add('selected'));
+  updateSelCount();
+}
+function updateSelCount() {
+  const n = selected.size;
+  document.getElementById('sel-count').textContent =
+    n ? `${n} question${n!==1?'s':''} selected` : '0 selected';
+}
+
+// ═══════════════════════════════════════════════
+// FILE I/O — JSON ONLY
+// ═══════════════════════════════════════════════
+function saveToFile() {
+  const title = (guest.name || 'Script') + ' — UniTalks';
+  const id = currentScriptId || null;
+  const payload = buildPayload(guest, sections, { title, id });
+  currentScriptId = payload.id;
+  // 1. Download the .json file
+  downloadJSON(payload);
+  // 2. Also persist to localStorage so library picks it up
+  persistScript(payload);
+  markSaved();
+  toast('Saved as .json — library updated');
+}
+
+function loadFromFile() {
+  document.getElementById('file-input').click();
+}
+
+async function onFileInputChange(e) {
+  const file = e.target.files[0]; if (!file) return;
+  try {
+    const data = await readJSONFile(file);
+    loadPayload(data);
+    toast('Script loaded!');
+  } catch(err) {
+    toast('Could not read file', 'error');
+  }
+  e.target.value = '';
+}
+
+function loadPayload(data) {
+  if (!data.sections) { toast('Not a valid script file', 'error'); return; }
+  guest    = data.guest   || buildDefaultGuest();
+  sections = data.sections;
+  syncCountersFromData(sections);
+  selected.clear();
+  currentScriptId = data.id || null;
+  currentFilename = data.title;
+  renderAll();
+  setTimeout(autoResizeAll, 80);
+  markSaved();
+}
+
+// ═══════════════════════════════════════════════
+// EXPORT / PREVIEW
+// ═══════════════════════════════════════════════
+function openExport() {
+  const selData = buildSelectionData();
+  const n = Object.values(selData).reduce((a,v)=>a+Object.values(v).reduce((b,qs)=>b+qs.length,0),0);
+  const data = n ? selData : buildAllData();
+  document.getElementById('export-sub').textContent =
+    n ? `${n} question${n!==1?'s':''} selected` : 'All questions (none selected)';
+  let html = '';
+  sections.forEach(sec => {
+    const sd = data[sec.id]; if (!sd) return;
+    const qs = Object.values(sd).flat();
+    if (!qs.length) return;
+    html += `<div class="export-section-title">${escHtml(sec.name)} · ${sec.time} min</div>`;
+    sec.variations.forEach(v => {
+      const vqs = sd[v.id] || []; if (!vqs.length) return;
+      if (sec.variations.length > 1)
+        html += `<div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin:7px 0 4px;letter-spacing:1px;">${escHtml(v.label)}</div>`;
+      vqs.forEach((q, i) => {
+        html += `<div class="export-q">
+          <span class="export-q-num">${i+1}.</span>
+          <div class="export-q-text">${escHtml(q.text)}
+            ${q.tip ? `<div style="font-size:10px;color:var(--text3);font-style:italic;margin-top:2px;">💡 ${escHtml(q.tip)}</div>` : ''}
+          </div></div>`;
+      });
+    });
+  });
+  document.getElementById('export-content').innerHTML = html || '<p style="color:var(--text3);font-family:var(--mono);font-size:11px;">Nothing to export</p>';
+  openModal('export-modal');
+}
+
+function copyExport() {
+  const selData = buildSelectionData();
+  const n = Object.values(selData).reduce((a,v)=>a+Object.values(v).reduce((b,qs)=>b+qs.length,0),0);
+  const data = n ? selData : buildAllData();
+  let txt = `UNITАЛKS — ${guest.name}\n${guest.role}\n`;
+  if (guest.achievements.length) txt += guest.achievements.join(' · ') + '\n';
+  txt += '═'.repeat(50) + '\n\n';
+  sections.forEach(sec => {
+    const sd = data[sec.id]; if (!sd) return;
+    const total = Object.values(sd).flat().length; if (!total) return;
+    txt += `[ ${sec.name.toUpperCase()} — ${sec.time} MIN ]\n\n`;
+    sec.variations.forEach(v => {
+      const vqs = sd[v.id]||[]; if (!vqs.length) return;
+      if (sec.variations.length > 1) txt += `  ${v.label}\n`;
+      vqs.forEach((q, i) => { txt += `  ${i+1}. ${q.text}\n`; if(q.tip) txt += `     💡 ${q.tip}\n`; });
+      txt += '\n';
+    });
+  });
+  navigator.clipboard.writeText(txt).then(()=>toast('Copied!')).catch(()=>toast('Copy failed','error'));
+}
+
+function buildSelectionData() {
+  const r = {};
+  selected.forEach(key => {
+    const [sId, vId, qId] = key.split('-').map(Number);
+    const s=sections.find(s=>s.id===sId), v=s&&s.variations.find(v=>v.id===vId), q=v&&v.questions.find(q=>q.id===qId);
+    if (!q) return;
+    if (!r[sId]) r[sId] = {};
+    if (!r[sId][vId]) r[sId][vId] = [];
+    r[sId][vId].push(q);
+  });
+  return r;
+}
+
+function buildAllData() {
+  const r = {};
+  sections.forEach(s => { r[s.id]={}; s.variations.forEach(v => { r[s.id][v.id]=v.questions; }); });
+  return r;
+}
+
+// ═══════════════════════════════════════════════
+// DRAG & DROP
+// ═══════════════════════════════════════════════
+let _dragId = null;
+function dragStart(e, id) { _dragId = id; e.dataTransfer.effectAllowed='move'; }
+function dragOver(e, id) {
+  e.preventDefault();
+  document.querySelectorAll('.section-block').forEach(el => el.classList.remove('drag-over'));
+  if (id !== _dragId) document.getElementById(`sec-${id}`)?.classList.add('drag-over');
+}
+function dragLeave(id) { document.getElementById(`sec-${id}`)?.classList.remove('drag-over'); }
+function dragDrop(e, targetId) {
+  e.preventDefault();
+  document.querySelectorAll('.section-block').forEach(el => el.classList.remove('drag-over'));
+  if (!_dragId || _dragId === targetId) return;
+  const si = sections.findIndex(s=>s.id===_dragId), ti = sections.findIndex(s=>s.id===targetId);
+  if (si<0||ti<0) return;
+  const [s] = sections.splice(si, 1); sections.splice(ti, 0, s);
+  _dragId = null; renderSections(); renderSidebar(); markUnsaved();
+}
+
+// ═══════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════
+function markUnsaved() {
+  unsaved = true;
+  document.getElementById('save-status').className = 'save-status unsaved';
+  document.getElementById('save-label').textContent = 'Unsaved';
+}
+function markSaved() {
+  unsaved = false;
+  document.getElementById('save-status').className = 'save-status saved';
+  document.getElementById('save-label').textContent = 'Saved';
+}
+function scrollTo(id) { document.getElementById(id)?.scrollIntoView({behavior:'smooth',block:'start'}); }
+</script>
+</body>
+</html>

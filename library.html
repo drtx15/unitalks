@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniTalks — Library</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300;1,9..144,600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+/* ── LAYOUT ── */
+.app { display: flex; height: 100vh; overflow: hidden; }
+
+/* ══════════════════════════════════════
+   LEFT PANEL — FILE BROWSER
+══════════════════════════════════════ */
+.lib-panel {
+  width: 320px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.lib-head {
+  padding: 20px 22px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.lib-logo { font-family: var(--display); font-size: 38px; letter-spacing: 5px; color: var(--accent); line-height: 1; }
+.lib-eyebrow { font-family: var(--mono); font-size: 8px; letter-spacing: 3px; color: var(--text3); text-transform: uppercase; margin-top: 2px; }
+
+.lib-toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 22px;
+  border-bottom: 1px solid var(--border);
+  align-items: center;
+}
+.search-input {
+  flex: 1;
+  background: var(--card2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text);
+  outline: none;
+  transition: border-color var(--transition);
+}
+.search-input:focus { border-color: var(--green); }
+.search-input::placeholder { color: var(--text3); }
+
+/* DIRECTORY HEADER */
+.dir-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 22px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+}
+.dir-path { color: var(--accent); }
+.dir-count { margin-left: auto; }
+
+.files-list { flex: 1; overflow-y: auto; padding: 6px 0; }
+
+/* FILE ROW */
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 22px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: background var(--transition);
+  position: relative;
+}
+.file-row:hover   { background: var(--card); }
+.file-row.active  { background: var(--card); border-left-color: var(--accent); }
+
+.file-icon { font-size: 14px; flex-shrink: 0; opacity: 0.7; }
+.file-info { flex: 1; min-width: 0; }
+.file-title {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+.file-row.active .file-title { color: var(--accent); }
+.file-guest {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.file-meta {
+  font-family: var(--mono);
+  font-size: 8px;
+  color: var(--text3);
+  flex-shrink: 0;
+  text-align: right;
+  line-height: 1.6;
+}
+.file-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.file-row:hover .file-actions { opacity: 1; }
+
+/* EMPTY STATE */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 10px;
+  padding: 40px 20px;
+  text-align: center;
+}
+.empty-icon { font-size: 40px; opacity: 0.25; }
+.empty-title { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+.empty-hint  { font-family: var(--mono); font-size: 9px;  color: var(--text3); opacity: 0.6; line-height: 1.7; }
+
+/* DROP ZONE */
+.drop-zone {
+  border: 1px dashed var(--border2);
+  border-radius: var(--radius);
+  padding: 14px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+  cursor: pointer;
+  transition: all var(--transition);
+  margin: 0 22px;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-dim);
+}
+
+.lib-foot {
+  padding: 12px 22px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ══════════════════════════════════════
+   RIGHT PANEL — VIEWER
+══════════════════════════════════════ */
+.viewer-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* VIEWER EMPTY */
+.viewer-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.ve-logo {
+  font-family: var(--display);
+  font-size: 100px;
+  letter-spacing: 12px;
+  color: var(--accent);
+  opacity: 0.05;
+  line-height: 1;
+  user-select: none;
+}
+.ve-text { font-family: var(--mono); font-size: 11px; letter-spacing: 2px; color: var(--text3); text-transform: uppercase; }
+
+/* VIEWER HEADER */
+.viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 40px;
+  background: rgba(7,7,13,0.96);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.vh-info { min-width: 0; }
+.vh-title { font-family: var(--display); font-size: 20px; letter-spacing: 2px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vh-sub   { font-family: var(--mono); font-size: 9px; color: var(--text3); margin-top: 2px; }
+.vh-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* VIEWER CONTENT */
+.viewer-body { flex: 1; overflow-y: auto; padding: 36px 48px 80px; }
+
+/* GUEST HERO */
+.guest-hero {
+  margin-bottom: 36px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--border);
+  animation: fadeUp 0.4s ease;
+}
+.gh-eyebrow { font-family: var(--mono); font-size: 9px; letter-spacing: 3px; color: var(--text3); text-transform: uppercase; margin-bottom: 10px; }
+.gh-name    { font-family: var(--display); font-size: 52px; letter-spacing: 4px; line-height: 1; color: var(--text); margin-bottom: 6px; }
+.gh-role    { font-family: var(--mono); font-size: 12px; color: var(--text2); margin-bottom: 14px; }
+.gh-achs    { display: flex; flex-wrap: wrap; gap: 8px; }
+.gh-ach {
+  font-family: var(--mono); font-size: 10px; color: var(--accent);
+  background: var(--accent-dim); border: 1px solid rgba(232,255,71,0.18);
+  padding: 4px 12px; border-radius: 2px;
+}
+
+/* RUNTIME BAR */
+.runtime-bar-wrap {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 14px 18px;
+  margin-bottom: 32px;
+  animation: fadeUp 0.4s 0.05s ease both;
+}
+.rb-label { font-family: var(--mono); font-size: 9px; letter-spacing: 2px; color: var(--text3); text-transform: uppercase; display: flex; justify-content: space-between; margin-bottom: 10px; }
+.rb-track { display: flex; gap: 2px; height: 5px; border-radius: 2px; overflow: hidden; }
+.rb-seg { border-radius: 1px; transition: opacity var(--transition); cursor: default; }
+.rb-seg:hover { opacity: 0.75; }
+.rb-seg.intro  { background: var(--orange); }
+.rb-seg.qa     { background: var(--green); }
+.rb-seg.topic  { background: var(--accent); }
+.rb-seg.outro  { background: var(--purple); }
+.rb-legend { display: flex; gap: 14px; margin-top: 8px; flex-wrap: wrap; }
+.rb-legend-item { display: flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 8px; color: var(--text3); }
+.rb-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+/* VIEWER SECTION */
+.v-section { margin-bottom: 28px; animation: fadeUp 0.35s ease both; }
+
+.vs-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.vs-num  { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+.vs-name { font-family: var(--display); font-size: 24px; letter-spacing: 2px; flex: 1; }
+.vs-type { font-family: var(--mono); font-size: 8px; padding: 2px 6px; border-radius: 2px; text-transform: uppercase; letter-spacing: 1px; }
+.vs-time { font-family: var(--mono); font-size: 10px; color: var(--green); background: var(--green-dim); border: 1px solid rgba(94,255,196,0.15); padding: 3px 8px; border-radius: 2px; }
+
+/* VIEWER VARIATION */
+.v-variation { margin-bottom: 14px; }
+.vv-label { font-family: var(--mono); font-size: 8px; letter-spacing: 2px; color: var(--text3); text-transform: uppercase; margin-bottom: 7px; }
+
+/* VIEWER QUESTION */
+.v-q {
+  display: flex;
+  gap: 14px;
+  padding: 13px 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+  position: relative;
+}
+.v-q:hover { border-color: var(--border2); background: var(--card2); }
+.v-q.highlighted { border-color: var(--accent); background: var(--accent-glow); }
+.v-q.highlighted .vq-n { color: var(--accent); }
+
+.vq-n    { font-family: var(--mono); font-size: 10px; color: var(--text3); min-width: 20px; margin-top: 2px; flex-shrink: 0; }
+.vq-body { flex: 1; }
+.vq-text { font-family: var(--serif); font-size: 15px; font-weight: 300; line-height: 1.65; color: var(--text); }
+.vq-tip  { font-family: var(--mono); font-size: 10px; font-style: italic; color: var(--text3); margin-top: 6px; padding-left: 8px; border-left: 2px solid var(--border2); }
+.vq-star {
+  position: absolute;
+  top: 10px; right: 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text3);
+  padding: 3px;
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+.v-q:hover .vq-star, .v-q.highlighted .vq-star { opacity: 1; }
+.v-q.highlighted .vq-star { color: var(--accent); }
+
+/* TELEPROMPTER MODE */
+.viewer-panel.tp-mode { background: #020208; }
+.viewer-panel.tp-mode .viewer-body { padding: 60px 100px; }
+.viewer-panel.tp-mode .v-q { background: transparent; border-color: transparent; border-bottom: 1px solid rgba(255,255,255,0.04); border-radius: 0; padding: 20px 0; }
+.viewer-panel.tp-mode .v-q:hover { background: rgba(255,255,255,0.015); border-color: transparent; }
+.viewer-panel.tp-mode .vq-text { font-size: 24px; line-height: 1.8; color: #e0e0ff; }
+.viewer-panel.tp-mode .vq-n { font-size: 12px; color: rgba(232,255,71,0.25); }
+.viewer-panel.tp-mode .vs-name { color: rgba(94,255,196,0.5); font-size: 16px; }
+.viewer-panel.tp-mode .gh-name { font-size: 36px; color: rgba(232,255,71,0.6); }
+.viewer-panel.tp-mode .gh-role { color: rgba(255,255,255,0.25); }
+.viewer-panel.tp-mode .runtime-bar-wrap { display: none; }
+
+/* VIEWER FOOTER BAR */
+.viewer-footer {
+  position: absolute;
+  bottom: 0;
+  left: 320px; right: 0;
+  padding: 9px 40px;
+  background: rgba(7,7,13,0.96);
+  backdrop-filter: blur(14px);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  z-index: 50;
+}
+.vf-stats { display: flex; gap: 16px; }
+.vf-stat  { font-family: var(--mono); font-size: 9px; color: var(--text3); }
+.vf-stat span { color: var(--green); }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ══ LEFT: FILE BROWSER ══ -->
+  <div class="lib-panel">
+    <div class="lib-head">
+      <div class="lib-logo">UniTalks</div>
+      <div class="lib-eyebrow">Script Library</div>
+    </div>
+
+    <div class="lib-toolbar">
+      <input type="text" class="search-input" id="search" placeholder="Search..." oninput="filterFiles(this.value)">
+    </div>
+
+    <div class="dir-header">
+      <span>📁</span>
+      <span class="dir-path">/jsons</span>
+      <span class="dir-count" id="dir-count">0 files</span>
+    </div>
+
+    <div class="files-list" id="files-list"></div>
+
+    <div style="padding:10px 0;">
+      <div class="drop-zone" id="drop-zone" onclick="triggerImport()">
+        ↑ Drop .json here or click to open
+      </div>
+    </div>
+
+    <div class="lib-foot">
+      <a href="editor.html" class="btn btn-accent">＋ New Script</a>
+      <button class="btn btn-ghost btn-sm" onclick="triggerImport()">Open .json</button>
+    </div>
+  </div>
+  <input type="file" id="file-input" accept=".json" multiple style="display:none" onchange="onFilesSelected(event)">
+
+  <!-- ══ RIGHT: VIEWER ══ -->
+  <div class="viewer-panel" id="viewer-panel">
+
+    <div class="viewer-empty" id="viewer-empty">
+      <div class="ve-logo">UT</div>
+      <div class="ve-text">Select a script to view</div>
+    </div>
+
+    <div id="viewer-active" style="display:none;flex-direction:column;height:100%;overflow:hidden;">
+      <div class="viewer-header">
+        <div class="vh-info">
+          <div class="vh-title" id="vh-title">—</div>
+          <div class="vh-sub"   id="vh-sub">—</div>
+        </div>
+        <div class="vh-actions">
+          <button class="btn btn-ghost btn-sm" id="tp-btn" onclick="toggleTeleprompter()">📺 Teleprompter</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearHighlights()">Clear ★</button>
+          <button class="btn btn-ghost btn-sm" onclick="copyScript()">Copy text</button>
+          <button class="btn btn-orange btn-sm" onclick="downloadCurrent()">↓ .json</button>
+          <a id="edit-link" href="editor.html" class="btn btn-accent btn-sm">✏ Edit</a>
+        </div>
+      </div>
+      <div class="viewer-body" id="viewer-body"></div>
+    </div>
+
+  </div>
+
+  <!-- VIEWER FOOTER -->
+  <div class="viewer-footer" id="viewer-footer" style="display:none;">
+    <div class="vf-stats">
+      <div class="vf-stat">Sections  <span id="vf-sec">—</span></div>
+      <div class="vf-stat">Questions <span id="vf-q">—</span></div>
+      <div class="vf-stat">Runtime   <span id="vf-rt">—</span></div>
+      <div class="vf-stat">Starred   <span id="vf-star">0</span></div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="printScript()">🖨 Print</button>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="shared.js"></script>
+<script>
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let allFiles    = [];   // full manifest entries (metadata only)
+let filtered    = [];   // after search
+let currentScript = null;
+let starred     = new Set();
+let teleprompter = false;
+let searchQuery  = '';
+
+// ═══════════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════════
+window.addEventListener('load', () => {
+  loadManifest();
+  setupDropZone(document.getElementById('drop-zone'), handleDroppedFile);
+  setupBodyDrop();
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 't' && !['INPUT','TEXTAREA'].includes(e.target.tagName)) toggleTeleprompter();
+});
+
+// ═══════════════════════════════════════════════
+// MANIFEST — reads from localStorage (mirrors /jsons/ directory)
+// Files saved by the editor end up in the manifest.
+// Users can also drag .json files in to add them.
+// ═══════════════════════════════════════════════
+function loadManifest() {
+  allFiles = getManifest();           // from shared.js
+  applyFilter();
+}
+
+function applyFilter() {
+  const q = searchQuery.toLowerCase();
+  filtered = q
+    ? allFiles.filter(f =>
+        f.title.toLowerCase().includes(q) ||
+        (f.guest?.name || '').toLowerCase().includes(q) ||
+        (f.notes || '').toLowerCase().includes(q))
+    : [...allFiles];
+  renderFileList();
+}
+
+function filterFiles(q) {
+  searchQuery = q;
+  applyFilter();
+}
+
+// ═══════════════════════════════════════════════
+// RENDER FILE LIST
+// ═══════════════════════════════════════════════
+function renderFileList() {
+  const list = document.getElementById('files-list');
+  document.getElementById('dir-count').textContent = `${allFiles.length} file${allFiles.length!==1?'s':''}`;
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="empty-icon">📂</div>
+      <div class="empty-title">${searchQuery ? 'No matches' : 'No scripts yet'}</div>
+      <div class="empty-hint">
+        ${searchQuery
+          ? 'Try a different search term.'
+          : 'Create a script in the editor\nor drop a .json file here.\nSaved scripts appear automatically.'}
+      </div>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(f => {
+    const isActive = currentScript && currentScript.id === f.id;
+    const date = formatDate(f.savedAt);
+    const runtime = formatRuntime(f.meta?.totalTime || 0);
+    return `<div class="file-row ${isActive?'active':''}" id="fr-${f.id}" onclick="openFile('${f.id}')">
+      <span class="file-icon">📄</span>
+      <div class="file-info">
+        <div class="file-title">${escHtml(f.title)}</div>
+        <div class="file-guest">${escHtml(f.guest?.name || '—')}</div>
+      </div>
+      <div class="file-meta">
+        <div>${runtime}</div>
+        <div>${date}</div>
+      </div>
+      <div class="file-actions" onclick="event.stopPropagation()">
+        <button class="icon-btn btn-sm" onclick="downloadFile('${f.id}')" title="Download">↓</button>
+        <button class="icon-btn btn-sm danger" onclick="removeFile('${f.id}')" title="Remove">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+// OPEN / VIEW
+// ═══════════════════════════════════════════════
+function openFile(id) {
+  const body = getScriptById(id);    // from shared.js — loads full script data
+  if (!body) { toast('Script not found — try re-importing', 'error'); return; }
+  currentScript = body;
+  starred.clear();
+  renderFileList();
+  renderViewer(body);
+}
+
+function renderViewer(script) {
+  document.getElementById('viewer-empty').style.display  = 'none';
+  document.getElementById('viewer-active').style.display = 'flex';
+  document.getElementById('viewer-footer').style.display = 'flex';
+
+  // Header
+  document.getElementById('vh-title').textContent = script.title || 'Untitled';
+  const date = formatDate(script.savedAt);
+  document.getElementById('vh-sub').textContent =
+    [script.notes, date].filter(Boolean).join(' · ');
+
+  // Edit link — pass id so editor can load it
+  document.getElementById('edit-link').href = `editor.html?id=${script.id}`;
+
+  // Stats
+  const totalQ  = (script.sections||[]).reduce((a,s)=>a+s.variations.reduce((b,v)=>b+v.questions.length,0),0);
+  const totalT  = (script.sections||[]).reduce((a,s)=>a+(parseInt(s.time)||0),0);
+  document.getElementById('vf-sec').textContent  = (script.sections||[]).length;
+  document.getElementById('vf-q').textContent    = totalQ;
+  document.getElementById('vf-rt').textContent   = formatRuntime(totalT);
+  document.getElementById('vf-star').textContent = '0';
+
+  // Body
+  const body = document.getElementById('viewer-body');
+  const g    = script.guest || {};
+  let html   = '';
+
+  // ── Guest hero
+  html += `<div class="guest-hero">
+    <div class="gh-eyebrow">Episode Guest</div>
+    <div class="gh-name">${escHtml(g.name||'Guest')}</div>
+    <div class="gh-role">${escHtml(g.role||'')}</div>
+    <div class="gh-achs">
+      ${(g.achievements||[]).map(a=>`<div class="gh-ach">${escHtml(a)}</div>`).join('')}
+    </div>
+  </div>`;
+
+  // ── Runtime bar
+  if ((script.sections||[]).length) {
+    const total = (script.sections||[]).reduce((a,s)=>a+(parseInt(s.time)||0),0)||1;
+    html += `<div class="runtime-bar-wrap">
+      <div class="rb-label"><span>Runtime</span><span>${total} min</span></div>
+      <div class="rb-track">
+        ${(script.sections||[]).map(s=>`
+          <div class="rb-seg ${s.type}" style="flex:${parseInt(s.time)||1}" title="${escHtml(s.name)}: ${s.time} min"></div>`).join('')}
+      </div>
+      <div class="rb-legend">
+        ${[['intro','var(--orange)'],['qa','var(--green)'],['topic','var(--accent)'],['outro','var(--purple)']].map(
+          ([t,c])=>`<div class="rb-legend-item"><div class="rb-dot" style="background:${c}"></div>${t.toUpperCase()}</div>`
+        ).join('')}
+      </div>
+    </div>`;
+  }
+
+  // ── Sections
+  (script.sections||[]).forEach((sec, si) => {
+    html += `<div class="v-section" style="animation-delay:${si*0.04}s">
+      <div class="vs-head">
+        <span class="vs-num">${String(si+1).padStart(2,'0')}</span>
+        <span class="vs-name">${escHtml(sec.name)}</span>
+        <span class="vs-type ${`type-${sec.type}`}">${sec.type.toUpperCase()}</span>
+        <span class="vs-time">⏱ ${sec.time} min</span>
+      </div>`;
+
+    sec.variations.forEach((v, vi) => {
+      const showLabel = sec.variations.length > 1 || v.label !== 'Questions';
+      html += `<div class="v-variation">`;
+      if (showLabel) html += `<div class="vv-label">${escHtml(v.label)}</div>`;
+      v.questions.forEach((q, qi) => {
+        const key = `${sec.id}-${v.id}-${q.id}`;
+        html += `<div class="v-q" id="vq-${key}" data-key="${key}" onclick="toggleStar('${key}')">
+          <div class="vq-n">${qi+1}.</div>
+          <div class="vq-body">
+            <div class="vq-text">${escHtml(q.text)}</div>
+            ${q.tip ? `<div class="vq-tip">${escHtml(q.tip)}</div>` : ''}
+          </div>
+          <button class="vq-star" onclick="event.stopPropagation();toggleStar('${key}')" title="Star">★</button>
+        </div>`;
+      });
+      html += `</div>`;
+    });
+    html += `</div>`;
+  });
+
+  body.innerHTML   = html;
+  body.scrollTop   = 0;
+}
+
+// ═══════════════════════════════════════════════
+// STAR / HIGHLIGHT
+// ═══════════════════════════════════════════════
+function toggleStar(key) {
+  const el = document.getElementById(`vq-${key}`);
+  if (!el) return;
+  if (starred.has(key)) { starred.delete(key); el.classList.remove('highlighted'); }
+  else                  { starred.add(key);    el.classList.add('highlighted'); }
+  document.getElementById('vf-star').textContent = starred.size;
+}
+
+function clearHighlights() {
+  starred.forEach(k => document.getElementById(`vq-${k}`)?.classList.remove('highlighted'));
+  starred.clear();
+  document.getElementById('vf-star').textContent = '0';
+}
+
+// ═══════════════════════════════════════════════
+// TELEPROMPTER
+// ═══════════════════════════════════════════════
+function toggleTeleprompter() {
+  teleprompter = !teleprompter;
+  const panel = document.getElementById('viewer-panel');
+  const btn   = document.getElementById('tp-btn');
+  if (teleprompter) {
+    panel.classList.add('tp-mode');
+    btn.textContent  = '← Exit Teleprompter';
+    btn.style.color  = 'var(--green)';
+  } else {
+    panel.classList.remove('tp-mode');
+    btn.textContent  = '📺 Teleprompter';
+    btn.style.color  = '';
+  }
+}
+
+// ═══════════════════════════════════════════════
+// FILE MANAGEMENT
+// ═══════════════════════════════════════════════
+function downloadFile(id) {
+  const body = getScriptById(id); if (!body) return;
+  downloadJSON(body);   // from shared.js
+  toast('Downloaded');
+}
+
+function downloadCurrent() {
+  if (!currentScript) return;
+  downloadJSON(currentScript);
+  toast('Downloaded');
+}
+
+function removeFile(id) {
+  if (!confirm('Remove this script from the library?')) return;
+  deleteScriptFromStorage(id);   // from shared.js
+  if (currentScript?.id === id) {
+    currentScript = null;
+    document.getElementById('viewer-empty').style.display  = 'flex';
+    document.getElementById('viewer-active').style.display = 'none';
+    document.getElementById('viewer-footer').style.display = 'none';
+  }
+  allFiles = allFiles.filter(f => f.id !== id);
+  applyFilter();
+  toast('Removed from library');
+}
+
+// ═══════════════════════════════════════════════
+// IMPORT
+// ═══════════════════════════════════════════════
+function triggerImport() {
+  document.getElementById('file-input').click();
+}
+
+async function onFilesSelected(e) {
+  const files = Array.from(e.target.files);
+  for (const file of files) {
+    await importFile(file);
+  }
+  e.target.value = '';
+}
+
+async function importFile(file) {
+  try {
+    const data = await readJSONFile(file);     // from shared.js
+    const payload = importPayload(data);       // from shared.js — validates + persists
+    // Add/update in allFiles
+    const idx = allFiles.findIndex(f => f.id === payload.id);
+    const entry = {
+      id: payload.id, filename: file.name,
+      title: payload.title, notes: payload.notes,
+      savedAt: payload.savedAt, meta: payload.meta,
+      guest: { name: payload.guest?.name, role: payload.guest?.role, achievements: payload.guest?.achievements }
+    };
+    if (idx >= 0) allFiles[idx] = entry; else allFiles.unshift(entry);
+    applyFilter();
+    openFile(payload.id);
+    toast(`Loaded: ${payload.title}`);
+  } catch(err) {
+    toast('Invalid .json file — is this a UniTalks script?', 'error');
+  }
+}
+
+async function handleDroppedFile(file) {
+  await importFile(file);
+}
+
+function setupBodyDrop() {
+  // Allow drag-drop anywhere on the page
+  document.body.addEventListener('dragover', e => e.preventDefault());
+  document.body.addEventListener('drop', async e => {
+    e.preventDefault();
+    const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.json'));
+    if (!files.length) { toast('Drop a .json file', 'warn'); return; }
+    for (const f of files) await importFile(f);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// COPY / PRINT
+// ═══════════════════════════════════════════════
+function copyScript() {
+  if (!currentScript) return;
+  const s = currentScript, g = s.guest || {};
+  let txt = `UNITАЛKS — ${g.name}\n${g.role}\n`;
+  if (g.achievements?.length) txt += g.achievements.join(' · ') + '\n';
+  txt += '═'.repeat(50) + '\n\n';
+  (s.sections||[]).forEach(sec => {
+    txt += `[ ${sec.name.toUpperCase()} — ${sec.time} MIN ]\n\n`;
+    sec.variations.forEach(v => {
+      if (sec.variations.length > 1) txt += `  ${v.label}\n`;
+      v.questions.forEach((q,i) => {
+        txt += `  ${i+1}. ${q.text}\n`;
+        if (q.tip) txt += `     💡 ${q.tip}\n`;
+      });
+      txt += '\n';
+    });
+  });
+  navigator.clipboard.writeText(txt).then(()=>toast('Copied!')).catch(()=>toast('Copy failed','error'));
+}
+
+function printScript() { window.print(); }
+
+// ═══════════════════════════════════════════════
+// EDITOR → LIBRARY LINK
+// When editor saves a script, it calls persistScript() which uses
+// shared.js and localStorage. The library reads the same store.
+// Refreshing the library page picks up newly saved scripts.
+// ═══════════════════════════════════════════════
+
+// Poll for new scripts added by the editor (in another tab)
+setInterval(() => {
+  const fresh = getManifest();
+  if (fresh.length !== allFiles.length) {
+    allFiles = fresh;
+    applyFilter();
+  }
+}, 3000);
+</script>
+</body>
+</html>
